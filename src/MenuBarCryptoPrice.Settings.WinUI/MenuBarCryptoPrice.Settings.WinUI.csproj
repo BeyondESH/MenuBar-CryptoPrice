@@ -58,10 +58,13 @@
     <Compile Include="..\MenuBarCryptoPrice\Infrastructure\AppPaths.cs" Link="Linked\Infrastructure\AppPaths.cs" />
     <Compile Include="..\MenuBarCryptoPrice\Infrastructure\ConfigService.cs" Link="Linked\Infrastructure\ConfigService.cs" />
     <Compile Include="..\MenuBarCryptoPrice\Infrastructure\FileLogger.cs" Link="Linked\Infrastructure\FileLogger.cs" />
+    <Compile Include="..\MenuBarCryptoPrice\Infrastructure\HostLifetime.cs" Link="Linked\Infrastructure\HostLifetime.cs" />
     <Compile Include="..\MenuBarCryptoPrice\Infrastructure\ILog.cs" Link="Linked\Infrastructure\ILog.cs" />
+    <Compile Include="..\MenuBarCryptoPrice\MarketData\BitgetNetwork.cs" Link="Linked\MarketData\BitgetNetwork.cs" />
     <Compile Include="..\MenuBarCryptoPrice\MarketData\BitgetRestClient.cs" Link="Linked\MarketData\BitgetRestClient.cs" />
     <Compile Include="..\MenuBarCryptoPrice\MarketData\CatalogEntry.cs" Link="Linked\MarketData\CatalogEntry.cs" />
     <Compile Include="..\MenuBarCryptoPrice\MarketData\CatalogService.cs" Link="Linked\MarketData\CatalogService.cs" />
+    <Compile Include="..\MenuBarCryptoPrice\MarketData\HttpRetry.cs" Link="Linked\MarketData\HttpRetry.cs" />
     <Compile Include="..\MenuBarCryptoPrice\MarketData\PriceFormatter.cs" Link="Linked\MarketData\PriceFormatter.cs" />
     <Compile Include="..\MenuBarCryptoPrice\MarketData\TickerQuote.cs" Link="Linked\MarketData\TickerQuote.cs" />
     <Compile Include="..\MenuBarCryptoPrice\MarketData\TickerSnapshotParser.cs" Link="Linked\MarketData\TickerSnapshotParser.cs" />
