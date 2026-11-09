@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.WebSockets;
 using MenuBarCryptoPrice.Core;
 using MenuBarCryptoPrice.Infrastructure;
@@ -21,19 +22,22 @@ public interface IWsClient : IDisposable
 
 public sealed class BitgetWsClient : IWsClient
 {
-    private const string Endpoint = "wss://ws.bitget.com/v2/ws/public";
+    private static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(10);
 
     private readonly ILog _log;
+    private readonly BitgetNetwork _network;
     private readonly Random _random = new();
     private readonly object _gate = new();
     private ClientWebSocket? _socket;
     private CancellationTokenSource? _cts;
+    private long _generation;
     private bool _connected;
     private bool _disposed;
 
-    public BitgetWsClient(ILog? log = null)
+    public BitgetWsClient(ILog? log = null, BitgetNetwork? network = null)
     {
         _log = log ?? NullLog.Instance;
+        _network = network ?? BitgetNetwork.Shared;
     }
 
     public event Action<TickerQuote>? QuoteReceived;
@@ -56,8 +60,14 @@ public sealed class BitgetWsClient : IWsClient
         }
 
         var cts = new CancellationTokenSource();
-        _cts = cts;
-        _ = Task.Run(() => RunAsync(unique, cts.Token));
+        long generation;
+        lock (_gate)
+        {
+            _cts = cts;
+            generation = ++_generation;
+        }
+
+        _ = Task.Run(() => RunAsync(unique, cts.Token, generation));
     }
 
     public void Stop()
@@ -67,13 +77,14 @@ public sealed class BitgetWsClient : IWsClient
         {
             cts = _cts;
             _cts = null;
+            _generation++;
             try
             {
                 _socket?.Abort();
             }
-            catch
+            catch (Exception ex)
             {
-                // Aborting a disposed socket is harmless.
+                _log.Warn("Failed to abort the Bitget WebSocket.", ex);
             }
 
             _socket = null;
@@ -103,27 +114,46 @@ public sealed class BitgetWsClient : IWsClient
         Stop();
     }
 
-    private async Task RunAsync(InstrumentKey[] keys, CancellationToken cancellationToken)
+    private async Task RunAsync(InstrumentKey[] keys, CancellationToken cancellationToken, long generation)
     {
         var attempt = 0;
         while (!cancellationToken.IsCancellationRequested)
         {
             var connectedAt = DateTimeOffset.MinValue;
+            var settings = _network.Settings;
+            var endpoint = settings.WsUri;
+            var endpointLog = endpoint.GetLeftPart(UriPartial.Path);
+
             try
             {
                 using var socket = new ClientWebSocket();
+                ApplyProxy(socket, settings);
                 socket.Options.KeepAliveInterval = TimeSpan.FromSeconds(20);
-                await socket.ConnectAsync(new Uri(Endpoint), cancellationToken).ConfigureAwait(false);
 
-                lock (_gate)
+                using (var connectCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
                 {
-                    _socket = socket;
+                    connectCts.CancelAfter(ConnectTimeout);
+                    await socket.ConnectAsync(endpoint, connectCts.Token).ConfigureAwait(false);
+
+                    lock (_gate)
+                    {
+                        if (generation == _generation)
+                        {
+                            _socket = socket;
+                        }
+                    }
+
+                    await SubscribeAsync(socket, keys, connectCts.Token).ConfigureAwait(false);
                 }
 
-                await SubscribeAsync(socket, keys, cancellationToken).ConfigureAwait(false);
                 connectedAt = DateTimeOffset.UtcNow;
-                SetConnected(true);
-                _log.Info($"Bitget WebSocket connected; subscribed {keys.Length} instrument(s).");
+                if (generation == _generation)
+                {
+                    SetConnected(true);
+                }
+
+                _log.Info(
+                    $"Bitget WebSocket connected to {endpointLog}; subscribed {keys.Length} instrument(s).");
 
                 var lastFrame = DateTimeOffset.UtcNow;
                 using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -140,17 +170,23 @@ public sealed class BitgetWsClient : IWsClient
             }
             catch (Exception ex)
             {
-                _log.Warn("Bitget WebSocket loop failed.", ex);
+                _log.Warn($"Bitget WebSocket loop failed (endpoint={endpointLog}).", ex);
                 Error?.Invoke("websocket", ex);
             }
             finally
             {
                 lock (_gate)
                 {
-                    _socket = null;
+                    if (generation == _generation)
+                    {
+                        _socket = null;
+                    }
                 }
 
-                SetConnected(false);
+                if (generation == _generation)
+                {
+                    SetConnected(false);
+                }
             }
 
             if (cancellationToken.IsCancellationRequested)
@@ -176,7 +212,23 @@ public sealed class BitgetWsClient : IWsClient
         }
     }
 
-    private static async Task SubscribeAsync(ClientWebSocket socket, InstrumentKey[] keys, CancellationToken cancellationToken)
+    private static void ApplyProxy(ClientWebSocket socket, NetworkEndpointSettings settings)
+    {
+        switch (settings.ProxyMode)
+        {
+            case NetworkProxyMode.Direct:
+                socket.Options.Proxy = null;
+                break;
+            case NetworkProxyMode.Custom when settings.ProxyUri is not null:
+                socket.Options.Proxy = new WebProxy(settings.ProxyUri);
+                break;
+        }
+    }
+
+    private static async Task SubscribeAsync(
+        ClientWebSocket socket,
+        InstrumentKey[] keys,
+        CancellationToken cancellationToken)
     {
         var payload = JsonSerializer.Serialize(new
         {

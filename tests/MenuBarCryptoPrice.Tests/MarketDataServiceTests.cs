@@ -102,6 +102,25 @@ public sealed class MarketDataServiceTests
     }
 
     [Fact]
+    public async Task PollsRest_WhenWebSocketIsConnectedButQuotesAreStale()
+    {
+        var rest = new FakeRestClient();
+        var ws = new FakeWsClient();
+        var options = new MarketDataOptions(TimeSpan.FromMilliseconds(80), TimeSpan.FromMilliseconds(40))
+        {
+            LoopTick = TimeSpan.FromMilliseconds(20),
+            StaleAfter = TimeSpan.FromMilliseconds(80)
+        };
+
+        using var service = new MarketDataService(rest, () => ws, new TickerStore(), options: options);
+        service.Start(new[] { InstrumentKey.Create(Market.Spot, "BTCUSDT") });
+
+        await WaitUntilAsync(() => ws.Started, TimeSpan.FromSeconds(1));
+        ws.SetConnected(true);
+        await WaitUntilAsync(() => Volatile.Read(ref rest.Calls) >= 2, TimeSpan.FromSeconds(2));
+    }
+
+    [Fact]
     public async Task QuoteReceived_UpdatesStore()
     {
         var rest = new FakeRestClient();

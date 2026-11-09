@@ -8,6 +8,8 @@ public sealed record MarketDataOptions(TimeSpan FallbackAfter, TimeSpan PollInte
 {
     public TimeSpan LoopTick { get; init; } = TimeSpan.FromSeconds(1);
 
+    public TimeSpan StaleAfter { get; init; } = TimeSpan.FromSeconds(30);
+
     public static MarketDataOptions Default { get; } = new(TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(5));
 }
 
@@ -71,8 +73,7 @@ public sealed class MarketDataService : IDisposable
         }
 
         ws.Start(_keys);
-        _ = Task.Run(() => InitialSnapshotAsync(cts.Token));
-        _ = Task.Run(() => FallbackLoopAsync(cts.Token));
+        _ = Task.Run(() => RunAsync(cts.Token));
     }
 
     public void Stop()
@@ -136,6 +137,24 @@ public sealed class MarketDataService : IDisposable
     private void OnWsError(string source, Exception? exception)
         => _log.Warn($"WebSocket error from {source}.", exception);
 
+    private async Task RunAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await InitialSnapshotAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (Exception ex)
+        {
+            _log.Error("Initial REST snapshot loop stopped unexpectedly.", ex);
+        }
+
+        await FallbackLoopAsync(cancellationToken).ConfigureAwait(false);
+    }
+
     private async Task InitialSnapshotAsync(CancellationToken cancellationToken)
     {
         var keys = _keys;
@@ -162,15 +181,11 @@ public sealed class MarketDataService : IDisposable
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                if (!_wsConnected)
+                var now = DateTimeOffset.UtcNow;
+                if (ShouldPoll(now) && now - _lastPoll >= _options.PollInterval)
                 {
-                    var now = DateTimeOffset.UtcNow;
-                    if (now - _wsDownSince >= _options.FallbackAfter
-                        && now - _lastPoll >= _options.PollInterval)
-                    {
-                        _lastPoll = now;
-                        await PollAsync(cancellationToken).ConfigureAwait(false);
-                    }
+                    _lastPoll = now;
+                    await PollAsync(cancellationToken).ConfigureAwait(false);
                 }
 
                 await Task.Delay(_options.LoopTick, cancellationToken).ConfigureAwait(false);
@@ -183,6 +198,25 @@ public sealed class MarketDataService : IDisposable
         {
             _log.Error("REST fallback loop stopped unexpectedly.", ex);
         }
+    }
+
+    private bool ShouldPoll(DateTimeOffset now)
+    {
+        if (!_wsConnected)
+        {
+            return now - _wsDownSince >= _options.FallbackAfter;
+        }
+
+        foreach (var key in _keys)
+        {
+            var quote = _store.Get(key);
+            if (quote is null || now - quote.ReceivedAt >= _options.StaleAfter)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private async Task PollAsync(CancellationToken cancellationToken)
