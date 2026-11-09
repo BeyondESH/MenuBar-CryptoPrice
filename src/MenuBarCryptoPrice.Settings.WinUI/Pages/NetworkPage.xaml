@@ -1,0 +1,91 @@
+<Page
+    x:Class="MenuBarCryptoPrice.Settings.WinUI.Pages.NetworkPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls">
+
+    <ScrollViewer
+        HorizontalScrollBarVisibility="Disabled"
+        VerticalScrollBarVisibility="Auto"
+        Padding="36,24,36,48">
+        <StackPanel MaxWidth="1000" HorizontalAlignment="Stretch" Spacing="12">
+
+            <TextBlock Text="网络" Style="{StaticResource TitleTextBlockStyle}" />
+            <TextBlock
+                Text="Bitget 公共接口在部分网络环境下可能连接较慢或中断。可跟随系统代理、手动指定 HTTP/SOCKS5 代理，或改为反向代理/加速地址。修改会立即保存并同步到主程序。"
+                Style="{StaticResource BodyTextBlockStyle}"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                TextWrapping="Wrap" />
+
+            <controls:SettingsCard
+                Header="代理模式"
+                Description="跟随系统会使用 Windows 系统代理；直连会忽略系统代理；自定义可手动指定 HTTP 或 SOCKS5 代理。">
+                <ComboBox
+                    MinWidth="160"
+                    SelectedIndex="{x:Bind ViewModel.ProxyModeIndex, Mode=OneWay}"
+                    SelectionChanged="OnProxyModeChanged">
+                    <ComboBoxItem Content="跟随系统" />
+                    <ComboBoxItem Content="直连" />
+                    <ComboBoxItem Content="自定义" />
+                </ComboBox>
+            </controls:SettingsCard>
+
+            <controls:SettingsCard
+                Header="代理地址"
+                Description="仅“自定义”模式生效；留空时临时按跟随系统处理。例如 http://127.0.0.1:7890 或 socks5://127.0.0.1:7891。"
+                IsEnabled="{x:Bind ViewModel.IsCustomProxy, Mode=OneWay}">
+                <TextBox
+                    x:Name="ProxyUrlBox"
+                    MinWidth="360"
+                    PlaceholderText="http://127.0.0.1:7890"
+                    Text="{x:Bind ViewModel.ProxyUrl, Mode=OneWay}"
+                    LostFocus="OnProxyUrlLostFocus" />
+            </controls:SettingsCard>
+
+            <controls:SettingsCard
+                Header="REST 接口地址"
+                Description="默认 https://api.bitget.com。可改为反向代理或国内加速地址，程序会在其后追加 /api/v2 路径。">
+                <TextBox
+                    x:Name="RestBaseUrlBox"
+                    MinWidth="360"
+                    PlaceholderText="https://api.bitget.com"
+                    Text="{x:Bind ViewModel.RestBaseUrl, Mode=OneWay}"
+                    LostFocus="OnRestBaseUrlLostFocus" />
+            </controls:SettingsCard>
+
+            <controls:SettingsCard
+                Header="WebSocket 接口地址"
+                Description="默认 wss://ws.bitget.com/v2/ws/public。可改为反向代理地址，需要包含完整路径。">
+                <TextBox
+                    x:Name="WsUrlBox"
+                    MinWidth="360"
+                    PlaceholderText="wss://ws.bitget.com/v2/ws/public"
+                    Text="{x:Bind ViewModel.WsUrl, Mode=OneWay}"
+                    LostFocus="OnWsUrlLostFocus" />
+            </controls:SettingsCard>
+
+            <controls:SettingsCard
+                Header="连接测试"
+                Description="{x:Bind ViewModel.ConnectionTestStatus, Mode=OneWay}">
+                <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <ProgressRing
+                        Width="20"
+                        Height="20"
+                        IsActive="{x:Bind ViewModel.IsTestingConnection, Mode=OneWay}" />
+                    <Button Content="测试连接" Click="OnTestConnectionClick" />
+                </StackPanel>
+            </controls:SettingsCard>
+
+            <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,4,0,0">
+                <Button Content="恢复默认网络设置" Click="OnRestoreNetworkClick" />
+            </StackPanel>
+
+            <TextBlock
+                Text="提示：代理软件需允许访问 api.bitget.com 与 ws.bitget.com；使用自定义地址时请确认反向代理会转发 WebSocket Upgrade 请求。"
+                Style="{StaticResource CaptionTextBlockStyle}"
+                Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                TextWrapping="Wrap"
+                Margin="0,4,0,0" />
+        </StackPanel>
+    </ScrollViewer>
+</Page>

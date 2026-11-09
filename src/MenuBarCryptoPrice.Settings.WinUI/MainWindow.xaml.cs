@@ -13,6 +13,7 @@ namespace MenuBarCryptoPrice.Settings.WinUI;
 public sealed partial class MainWindow : Window
 {
     private readonly ConfigService _configService;
+    private readonly BitgetNetwork _network;
     private readonly bool _openAbout;
     private DispatcherTimer? _visibilityTimer;
     private int _visibilityChecks;
@@ -26,11 +27,14 @@ public sealed partial class MainWindow : Window
         AppPaths.EnsureCreated();
         var log = new FileLogger(AppPaths.LogDirectory);
         _configService = new ConfigService(AppPaths.ConfigFile, log, autoSave: false);
+        _network = new BitgetNetwork(log);
+        _network.Apply(_configService.Config);
         ViewModel = new SettingsViewModel(
             _configService,
-            new CatalogService(AppPaths.CacheDirectory, log),
-            new BitgetRestClient(),
-            log);
+            new CatalogService(AppPaths.CacheDirectory, log, network: _network),
+            new BitgetRestClient(_network),
+            log,
+            _network);
 
         InitializeComponent();
         SystemBackdrop = new MicaBackdrop();
@@ -117,6 +121,7 @@ public sealed partial class MainWindow : Window
         PageHost.Children.Clear();
         PageHost.Children.Add(tag switch
         {
+            "network" => new NetworkPage(ViewModel),
             "appearance" => new AppearancePage(ViewModel),
             "about" => new AboutPage(ViewModel),
             _ => new MarketPage(ViewModel)
@@ -160,6 +165,7 @@ public sealed partial class MainWindow : Window
     {
         _visibilityTimer?.Stop();
         ViewModel.Dispose();
+        _network.Dispose();
         _configService.Dispose();
     }
 }

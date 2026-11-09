@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using MenuBarCryptoPrice.Core;
 using MenuBarCryptoPrice.Infrastructure;
@@ -18,6 +19,7 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
     private readonly ConfigService _configService;
     private readonly CatalogService _catalog;
     private readonly BitgetRestClient _rest;
+    private readonly BitgetNetwork _network;
     private readonly ILog _log;
     private readonly DispatcherTimer _liveTimer;
     private readonly DispatcherTimer _statusTimer;
@@ -34,17 +36,21 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
     private string _busyText = "正在加载…";
     private bool _refreshing;
     private bool _disposed;
+    private string _connectionTestStatus = "尚未测试";
+    private bool _isTestingConnection;
 
     public SettingsViewModel(
         ConfigService configService,
         CatalogService catalog,
         BitgetRestClient rest,
-        ILog log)
+        ILog log,
+        BitgetNetwork network)
     {
         _configService = configService;
         _catalog = catalog;
         _rest = rest;
         _log = log;
+        _network = network;
 
         Items = new ObservableCollection<ItemRowViewModel>();
         RebuildRows();
@@ -244,6 +250,41 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         }
     }
 
+    public int ProxyModeIndex
+    {
+        get => (int)Config.ProxyMode;
+        set
+        {
+            if (value < 0 || value > 2 || value == (int)Config.ProxyMode)
+            {
+                return;
+            }
+
+            _configService.Update(config => config.ProxyMode = (NetworkProxyMode)value);
+            SaveNetworkSettings();
+        }
+    }
+
+    public bool IsCustomProxy => Config.ProxyMode == NetworkProxyMode.Custom;
+
+    public string ProxyUrl => Config.ProxyUrl;
+
+    public string RestBaseUrl => Config.RestBaseUrl;
+
+    public string WsUrl => Config.WsUrl;
+
+    public string ConnectionTestStatus
+    {
+        get => _connectionTestStatus;
+        private set => SetProperty(ref _connectionTestStatus, value);
+    }
+
+    public bool IsTestingConnection
+    {
+        get => _isTestingConnection;
+        private set => SetProperty(ref _isTestingConnection, value);
+    }
+
     private AppConfig Config => _configService.Config;
 
     public async Task InitializeAsync()
@@ -402,9 +443,14 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
             config.PositionMode = defaults.PositionMode;
             config.Anchor = defaults.Anchor;
             config.StartWithWindows = defaults.StartWithWindows;
+            config.ProxyMode = defaults.ProxyMode;
+            config.ProxyUrl = defaults.ProxyUrl;
+            config.RestBaseUrl = defaults.RestBaseUrl;
+            config.WsUrl = defaults.WsUrl;
             config.Items = defaults.Items.Select(item => item.Clone()).ToList();
         });
 
+        _network.Apply(Config);
         SaveConfig();
         RebuildRows();
         OnPropertyChanged(nameof(MaxVisibleIndex));
@@ -414,7 +460,142 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(PositionIndex));
         OnPropertyChanged(nameof(AnchorIndex));
         OnPropertyChanged(nameof(StartWithWindows));
+        NotifyNetworkProperties();
         _ = RefreshQuotesAsync();
+    }
+
+    public bool SetProxyUrl(string? value)
+    {
+        var text = (value ?? string.Empty).Trim();
+        if (text.Length > 0)
+        {
+            if (!NetworkEndpointSettings.TryParseProxy(text, out var parsed) || parsed is null)
+            {
+                ShowStatus(
+                    "代理地址格式无效，示例：http://127.0.0.1:7890 或 socks5://127.0.0.1:7891",
+                    InfoBarSeverity.Warning);
+                OnPropertyChanged(nameof(ProxyUrl));
+                return false;
+            }
+
+            text = parsed.ToString();
+        }
+
+        if (string.Equals(text, Config.ProxyUrl, StringComparison.Ordinal))
+        {
+            OnPropertyChanged(nameof(ProxyUrl));
+            return true;
+        }
+
+        _configService.Update(config => config.ProxyUrl = text);
+        SaveNetworkSettings();
+        return true;
+    }
+
+    public bool SetRestBaseUrl(string? value)
+    {
+        if (!NetworkEndpointSettings.TryNormalizeRestBaseUrl(value, out var normalized))
+        {
+            ShowStatus("REST 地址无效，示例：https://api.bitget.com", InfoBarSeverity.Warning);
+            OnPropertyChanged(nameof(RestBaseUrl));
+            return false;
+        }
+
+        if (string.Equals(normalized, Config.RestBaseUrl, StringComparison.Ordinal))
+        {
+            OnPropertyChanged(nameof(RestBaseUrl));
+            return true;
+        }
+
+        _configService.Update(config => config.RestBaseUrl = normalized);
+        SaveNetworkSettings();
+        return true;
+    }
+
+    public bool SetWsUrl(string? value)
+    {
+        if (!NetworkEndpointSettings.TryNormalizeWsUrl(value, out var normalized))
+        {
+            ShowStatus("WebSocket 地址无效，示例：wss://ws.bitget.com/v2/ws/public", InfoBarSeverity.Warning);
+            OnPropertyChanged(nameof(WsUrl));
+            return false;
+        }
+
+        if (string.Equals(normalized, Config.WsUrl, StringComparison.Ordinal))
+        {
+            OnPropertyChanged(nameof(WsUrl));
+            return true;
+        }
+
+        _configService.Update(config => config.WsUrl = normalized);
+        SaveNetworkSettings();
+        return true;
+    }
+
+    public void RestoreNetworkDefaults()
+    {
+        var defaults = ConfigDefaults.Create();
+        _configService.Update(config =>
+        {
+            config.ProxyMode = defaults.ProxyMode;
+            config.ProxyUrl = defaults.ProxyUrl;
+            config.RestBaseUrl = defaults.RestBaseUrl;
+            config.WsUrl = defaults.WsUrl;
+        });
+
+        SaveNetworkSettings();
+        ShowStatus("网络设置已恢复默认", InfoBarSeverity.Success);
+    }
+
+    public async Task TestConnectionAsync()
+    {
+        if (IsTestingConnection || _disposed)
+        {
+            return;
+        }
+
+        IsTestingConnection = true;
+        ConnectionTestStatus = "正在连接 Bitget…";
+        var watch = Stopwatch.StartNew();
+        try
+        {
+            var quote = await _rest.GetTickerAsync(
+                InstrumentKey.Create(Market.Spot, "BTCUSDT"),
+                _cts.Token);
+
+            watch.Stop();
+            ConnectionTestStatus = $"连接成功 · {watch.ElapsedMilliseconds} ms · BTC/USDT {quote.Price:0.##}";
+            ShowStatus("Bitget 连接正常", InfoBarSeverity.Success);
+        }
+        catch (OperationCanceledException) when (_cts.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            watch.Stop();
+            ConnectionTestStatus = $"连接失败 · {watch.ElapsedMilliseconds} ms · {ex.Message}";
+            ShowStatus("Bitget 连接失败：" + ex.Message, InfoBarSeverity.Error);
+        }
+        finally
+        {
+            IsTestingConnection = false;
+        }
+    }
+
+    private void SaveNetworkSettings()
+    {
+        _network.Apply(Config);
+        SaveConfig();
+        NotifyNetworkProperties();
+    }
+
+    private void NotifyNetworkProperties()
+    {
+        OnPropertyChanged(nameof(ProxyModeIndex));
+        OnPropertyChanged(nameof(IsCustomProxy));
+        OnPropertyChanged(nameof(ProxyUrl));
+        OnPropertyChanged(nameof(RestBaseUrl));
+        OnPropertyChanged(nameof(WsUrl));
     }
 
     public void ShowStatus(string message, InfoBarSeverity severity)
