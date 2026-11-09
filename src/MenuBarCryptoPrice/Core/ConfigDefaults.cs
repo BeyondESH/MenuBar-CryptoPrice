@@ -12,6 +12,10 @@ public static class ConfigDefaults
         PositionMode = PositionMode.Taskbar,
         Anchor = AnchorMode.Right,
         StartWithWindows = false,
+        ProxyMode = NetworkProxyMode.System,
+        ProxyUrl = string.Empty,
+        RestBaseUrl = NetworkEndpointSettings.DefaultRestBaseUrl,
+        WsUrl = NetworkEndpointSettings.DefaultWsUrl,
         Items = new List<TickerItemConfig>
         {
             new() { Market = Market.Spot, Symbol = "BTCUSDT", Precision = 2 },

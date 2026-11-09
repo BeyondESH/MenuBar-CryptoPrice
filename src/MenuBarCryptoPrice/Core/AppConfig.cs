@@ -56,6 +56,14 @@ public sealed class AppConfig
 
     public int OffsetX { get; set; }
 
+    public NetworkProxyMode ProxyMode { get; set; } = NetworkProxyMode.System;
+
+    public string ProxyUrl { get; set; } = string.Empty;
+
+    public string RestBaseUrl { get; set; } = NetworkEndpointSettings.DefaultRestBaseUrl;
+
+    public string WsUrl { get; set; } = NetworkEndpointSettings.DefaultWsUrl;
+
     public List<TickerItemConfig> Items { get; set; } = new();
 
     [JsonIgnore]
@@ -73,6 +81,10 @@ public sealed class AppConfig
         Anchor = Anchor,
         StartWithWindows = StartWithWindows,
         OffsetX = OffsetX,
+        ProxyMode = ProxyMode,
+        ProxyUrl = ProxyUrl,
+        RestBaseUrl = RestBaseUrl,
+        WsUrl = WsUrl,
         Items = Items.Select(item => item.Clone()).ToList()
     };
 }
@@ -106,4 +118,11 @@ public static class SettingDisplay
 
     public static string ToDisplayName(this AnchorMode value)
         => value == AnchorMode.Left ? "左侧" : "右侧";
+
+    public static string ToDisplayName(this NetworkProxyMode value) => value switch
+    {
+        NetworkProxyMode.Direct => "直连",
+        NetworkProxyMode.Custom => "自定义",
+        _ => "跟随系统"
+    };
 }
