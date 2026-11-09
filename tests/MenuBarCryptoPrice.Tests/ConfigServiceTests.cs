@@ -128,4 +128,63 @@ public sealed class ConfigServiceTests
         Assert.Equal(1, config.MaxVisibleItems);
         Assert.Equal(1, config.Items[0].Precision);
     }
+
+    [Fact]
+    public void Validate_NormalizesNetworkSettings()
+    {
+        var config = new AppConfig
+        {
+            ProxyMode = NetworkProxyMode.Custom,
+            ProxyUrl = "127.0.0.1:7890",
+            RestBaseUrl = "api.bitget.com/",
+            WsUrl = "ws.bitget.com/v2/ws/public"
+        };
+
+        ConfigService.Validate(config);
+
+        Assert.Equal(NetworkProxyMode.Custom, config.ProxyMode);
+        Assert.Equal("http://127.0.0.1:7890/", config.ProxyUrl);
+        Assert.Equal("https://api.bitget.com", config.RestBaseUrl);
+        Assert.Equal("wss://ws.bitget.com/v2/ws/public", config.WsUrl);
+    }
+
+    [Fact]
+    public void Validate_InvalidCustomProxyFallsBackToSystem()
+    {
+        var config = new AppConfig
+        {
+            ProxyMode = NetworkProxyMode.Custom,
+            ProxyUrl = "ftp://127.0.0.1:21"
+        };
+
+        ConfigService.Validate(config);
+
+        Assert.Equal(NetworkProxyMode.System, config.ProxyMode);
+        Assert.Equal(string.Empty, config.ProxyUrl);
+    }
+
+    [Fact]
+    public void SaveAndReload_RoundTripsNetworkSettings()
+    {
+        using var temp = new TempDirectory();
+        var path = temp.File("config.json");
+
+        using (var service = new ConfigService(path, autoSave: false))
+        {
+            service.Update(config =>
+            {
+                config.ProxyMode = NetworkProxyMode.Custom;
+                config.ProxyUrl = "socks5://127.0.0.1:7891/";
+                config.RestBaseUrl = "http://proxy.local/bitget";
+                config.WsUrl = "ws://proxy.local:8080/v2/ws/public";
+            });
+            service.SaveNow();
+        }
+
+        using var reloaded = new ConfigService(path, autoSave: false);
+        Assert.Equal(NetworkProxyMode.Custom, reloaded.Config.ProxyMode);
+        Assert.Equal("socks5://127.0.0.1:7891/", reloaded.Config.ProxyUrl);
+        Assert.Equal("http://proxy.local/bitget", reloaded.Config.RestBaseUrl);
+        Assert.Equal("ws://proxy.local:8080/v2/ws/public", reloaded.Config.WsUrl);
+    }
 }

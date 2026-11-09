@@ -95,6 +95,28 @@ public sealed class ConfigService : IDisposable
             config.Anchor = AnchorMode.Right;
         }
 
+        if (!Enum.IsDefined(config.ProxyMode))
+        {
+            config.ProxyMode = NetworkProxyMode.System;
+        }
+
+        config.ProxyUrl = (config.ProxyUrl ?? string.Empty).Trim();
+        if (config.ProxyMode == NetworkProxyMode.Custom && config.ProxyUrl.Length > 0)
+        {
+            if (NetworkEndpointSettings.TryParseProxy(config.ProxyUrl, out var proxy) && proxy is not null)
+            {
+                config.ProxyUrl = proxy.ToString();
+            }
+            else
+            {
+                config.ProxyMode = NetworkProxyMode.System;
+                config.ProxyUrl = string.Empty;
+            }
+        }
+
+        config.RestBaseUrl = NetworkEndpointSettings.NormalizeRestBaseUrl(config.RestBaseUrl);
+        config.WsUrl = NetworkEndpointSettings.NormalizeWsUrl(config.WsUrl);
+
         config.OffsetX = Math.Clamp(config.OffsetX, -4000, 4000);
         config.Items ??= new List<TickerItemConfig>();
 
