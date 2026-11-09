@@ -18,7 +18,7 @@ public partial class App : Application
         DispatcherUnhandledException += OnDispatcherUnhandledException;
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
 
-        var singleInstance = new SingleInstance("MenuBarCryptoPrice");
+        var singleInstance = new SingleInstance(HostLifetime.ApplicationName);
         if (!singleInstance.IsFirstInstance)
         {
             singleInstance.SignalExistingInstance();
