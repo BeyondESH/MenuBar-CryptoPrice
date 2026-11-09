@@ -179,7 +179,7 @@ The settings client attaches to the host's single-instance mutex at startup; whe
 ### Steps
 
 1. Open [Releases](https://github.com/BeyondESH/MenuBar-CryptoPrice/releases/latest).
-2. Download `MenuBarCryptoPrice-Setup-1.0.1.exe`.
+2. Download `MenuBarCryptoPrice-Setup-1.1.0.exe`.
 3. Run the installer. It installs for the current user and does not trigger UAC.
 4. Optionally enable the desktop shortcut.
 5. Optionally launch the app after installation; the first run opens settings automatically.
@@ -392,7 +392,7 @@ The host is a self-contained single file. The WinUI settings client is a self-co
 The script runs `scripts\publish.ps1` and then invokes Inno Setup:
 
 ```text
-dist\MenuBarCryptoPrice-Setup-1.0.1.exe
+dist\MenuBarCryptoPrice-Setup-1.1.0.exe
 ```
 
 If `dist` is already current, skip publishing:
@@ -565,6 +565,7 @@ This project is for learning and personal market display only. It does not provi
 
 ## Version history
 
+- **v1.1.0**: Added the Network settings page (system/direct/custom proxy, REST/WebSocket endpoint overrides, connection test), REST retries and WebSocket connect timeout, stale-connection REST fallback; the settings client now closes when the host exits.
 - **v1.0.1**: Fixed the settings window reappearing after minimize; WinUI 3 settings client, outside-click popup close, GitHub/tip/icon, and installer.
 - **v1.0.0**: Initial taskbar overlay, Bitget spot/perpetual data, settings client, and installer.
 
