@@ -1,5 +1,5 @@
 ﻿#define MyAppName "MenuBar CryptoPrice"
-#define MyAppVersion "1.0.1"
+#define MyAppVersion "1.1.0"
 #define MyAppPublisher "BeyondESH"
 #define MyAppURL "https://github.com/BeyondESH/MenuBar-CryptoPrice"
 #define MyAppExeName "MenuBarCryptoPrice.exe"
