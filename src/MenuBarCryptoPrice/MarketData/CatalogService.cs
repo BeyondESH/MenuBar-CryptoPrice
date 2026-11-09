@@ -6,13 +6,12 @@ namespace MenuBarCryptoPrice.MarketData;
 
 public sealed class CatalogService
 {
-    private static readonly HttpClient SharedHttp = CreateHttpClient();
-
     private readonly string _cacheDirectory;
     private readonly ILog _log;
     private readonly TimeSpan _ttl;
     private readonly Func<DateTimeOffset> _clock;
-    private readonly HttpClient _http;
+    private readonly HttpClient? _http;
+    private readonly BitgetNetwork? _network;
     private readonly Dictionary<Market, CatalogFile> _memory = new();
     private readonly SemaphoreSlim _gate = new(1, 1);
 
@@ -21,13 +20,15 @@ public sealed class CatalogService
         ILog? log = null,
         TimeSpan? ttl = null,
         Func<DateTimeOffset>? clock = null,
-        HttpClient? httpClient = null)
+        HttpClient? httpClient = null,
+        BitgetNetwork? network = null)
     {
         _cacheDirectory = cacheDirectory;
         _log = log ?? NullLog.Instance;
         _ttl = ttl ?? TimeSpan.FromHours(24);
         _clock = clock ?? (() => DateTimeOffset.UtcNow);
-        _http = httpClient ?? SharedHttp;
+        _http = httpClient;
+        _network = network;
     }
 
     public async Task<CatalogResult> GetCatalogAsync(Market market, bool forceRefresh, CancellationToken cancellationToken)
@@ -143,11 +144,14 @@ public sealed class CatalogService
 
     private async Task<CatalogFile> FetchAsync(Market market, CancellationToken cancellationToken)
     {
+        var network = _network ?? BitgetNetwork.Shared;
+        var baseUrl = network.Settings.RestBaseUri.ToString().TrimEnd('/');
         var url = market == Market.Spot
-            ? "https://api.bitget.com/api/v2/spot/public/symbols"
-            : "https://api.bitget.com/api/v2/mix/market/contracts?productType=USDT-FUTURES";
+            ? $"{baseUrl}/api/v2/spot/public/symbols"
+            : $"{baseUrl}/api/v2/mix/market/contracts?productType=USDT-FUTURES";
 
-        using var response = await _http.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        var http = _http ?? network.CatalogHttp;
+        using var response = await http.GetAsync(url, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         return ParseCatalog(market, json, _clock());
@@ -195,11 +199,4 @@ public sealed class CatalogService
         => element.TryGetProperty(name, out var property) && property.ValueKind == JsonValueKind.String
             ? property.GetString()
             : null;
-
-    private static HttpClient CreateHttpClient()
-    {
-        var client = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("MenuBarCryptoPrice/1.0");
-        return client;
-    }
 }

@@ -1,3 +1,4 @@
+using System.Net.Http;
 using MenuBarCryptoPrice.Core;
 
 namespace MenuBarCryptoPrice.MarketData;
@@ -9,31 +10,33 @@ public interface ITickerRestClient
 
 public sealed class BitgetRestClient : ITickerRestClient
 {
-    private static readonly HttpClient Http = CreateHttpClient();
+    private readonly BitgetNetwork _network;
+    private readonly HttpClient? _httpOverride;
+
+    public BitgetRestClient(BitgetNetwork? network = null, HttpClient? httpClient = null)
+    {
+        _network = network ?? BitgetNetwork.Shared;
+        _httpOverride = httpClient;
+    }
 
     public async Task<TickerQuote> GetTickerAsync(InstrumentKey key, CancellationToken cancellationToken)
     {
+        var baseUrl = _network.Settings.RestBaseUri.ToString().TrimEnd('/');
         var url = key.Market == Market.Spot
-            ? $"https://api.bitget.com/api/v2/spot/market/tickers?symbol={Uri.EscapeDataString(key.Symbol)}"
-            : $"https://api.bitget.com/api/v2/mix/market/ticker?symbol={Uri.EscapeDataString(key.Symbol)}&productType=USDT-FUTURES";
+            ? $"{baseUrl}/api/v2/spot/market/tickers?symbol={Uri.EscapeDataString(key.Symbol)}"
+            : $"{baseUrl}/api/v2/mix/market/ticker?symbol={Uri.EscapeDataString(key.Symbol)}&productType=USDT-FUTURES";
 
-        using var response = await Http
-            .GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
-            .ConfigureAwait(false);
-
-        if (!response.IsSuccessStatusCode)
+        var http = _httpOverride ?? _network.TickerHttp;
+        string json;
+        try
         {
-            throw new HttpRequestException($"Bitget HTTP {(int)response.StatusCode} for {key}.");
+            json = await HttpRetry.GetStringAsync(http, url, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TimeoutException)
+        {
+            throw new HttpRequestException($"Bitget request failed for {key} at {baseUrl}: {ex.Message}", ex);
         }
 
-        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         return TickerSnapshotParser.ParseRest(json, key, DateTimeOffset.UtcNow);
-    }
-
-    private static HttpClient CreateHttpClient()
-    {
-        var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("MenuBarCryptoPrice/1.0");
-        return client;
     }
 }
