@@ -1,0 +1,70 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>MenuBarCryptoPrice.Settings.WinUI</RootNamespace>
+    <Version>1.0.1</Version>
+    <AssemblyName>MenuBarCryptoPrice.Settings.WinUI</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <UseWinUI>true</UseWinUI>
+    <EnableMsixTooling>false</EnableMsixTooling>
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>false</PublishSingleFile>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="CommunityToolkit.WinUI.Controls.SettingsControls" Version="8.2.251219" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260921001" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2957" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="Assets\app.ico;Assets\dashang.jpg" />
+    <Content Include="Assets\app.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="Assets\dashang.jpg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
+  <Target Name="CopyWinUIXamlResourcesToPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <WinUIXamlResource Include="$(TargetDir)*.xbf" />
+      <WinUIXamlResource Include="$(TargetDir)$(AssemblyName).pri" />
+    </ItemGroup>
+    <Copy SourceFiles="@(WinUIXamlResource)"
+          DestinationFolder="$(PublishDir)"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- Reuse the UI-independent core, configuration and Bitget catalog code from the WPF host. -->
+  <ItemGroup>
+    <Compile Include="..\MenuBarCryptoPrice\Core\*.cs" Link="Linked\Core\%(Filename)%(Extension)" />
+    <Compile Include="..\MenuBarCryptoPrice\Infrastructure\AppPaths.cs" Link="Linked\Infrastructure\AppPaths.cs" />
+    <Compile Include="..\MenuBarCryptoPrice\Infrastructure\ConfigService.cs" Link="Linked\Infrastructure\ConfigService.cs" />
+    <Compile Include="..\MenuBarCryptoPrice\Infrastructure\FileLogger.cs" Link="Linked\Infrastructure\FileLogger.cs" />
+    <Compile Include="..\MenuBarCryptoPrice\Infrastructure\ILog.cs" Link="Linked\Infrastructure\ILog.cs" />
+    <Compile Include="..\MenuBarCryptoPrice\MarketData\BitgetRestClient.cs" Link="Linked\MarketData\BitgetRestClient.cs" />
+    <Compile Include="..\MenuBarCryptoPrice\MarketData\CatalogEntry.cs" Link="Linked\MarketData\CatalogEntry.cs" />
+    <Compile Include="..\MenuBarCryptoPrice\MarketData\CatalogService.cs" Link="Linked\MarketData\CatalogService.cs" />
+    <Compile Include="..\MenuBarCryptoPrice\MarketData\PriceFormatter.cs" Link="Linked\MarketData\PriceFormatter.cs" />
+    <Compile Include="..\MenuBarCryptoPrice\MarketData\TickerQuote.cs" Link="Linked\MarketData\TickerQuote.cs" />
+    <Compile Include="..\MenuBarCryptoPrice\MarketData\TickerSnapshotParser.cs" Link="Linked\MarketData\TickerSnapshotParser.cs" />
+  </ItemGroup>
+
+</Project>

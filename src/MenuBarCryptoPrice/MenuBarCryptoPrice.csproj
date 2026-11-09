@@ -1,0 +1,40 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- This is a WPF app that only borrows WinForms for the tray icon; DPI awareness is declared
+         in app.manifest (PerMonitorV2) which is the WPF requirement. -->
+    <NoWarn>$(NoWarn);WFAC010</NoWarn>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>MenuBarCryptoPrice</AssemblyName>
+    <RootNamespace>MenuBarCryptoPrice</RootNamespace>
+    <Version>1.0.1</Version>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+  </PropertyGroup>
+
+  <!-- UIAutomation assemblies ship in the Windows Desktop shared framework but are not part of the
+       default WPF compile reference set. Reference assemblies are copied under refs/ (Private=false
+       so the runtime resolves them from the shared framework). -->
+  <ItemGroup>
+    <Reference Include="UIAutomationClient">
+      <HintPath>refs\UIAutomationClient.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UIAutomationTypes">
+      <HintPath>refs\UIAutomationTypes.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+</Project>

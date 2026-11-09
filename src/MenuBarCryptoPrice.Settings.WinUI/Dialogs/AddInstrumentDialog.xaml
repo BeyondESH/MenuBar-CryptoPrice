@@ -1,0 +1,83 @@
+<ContentDialog
+    x:Class="MenuBarCryptoPrice.Settings.WinUI.Dialogs.AddInstrumentDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:md="using:MenuBarCryptoPrice.MarketData"
+    Title="添加币种"
+    PrimaryButtonText="添加"
+    CloseButtonText="取消"
+    DefaultButton="Primary"
+    PrimaryButtonClick="OnPrimaryButtonClick">
+
+    <StackPanel MinWidth="460" Spacing="12">
+        <ComboBox
+            x:Name="MarketBox"
+            Header="市场"
+            SelectedIndex="0"
+            HorizontalAlignment="Stretch"
+            SelectionChanged="OnMarketChanged">
+            <ComboBoxItem Content="现货" />
+            <ComboBoxItem Content="U 本位永续" />
+        </ComboBox>
+
+        <TextBox
+            x:Name="SearchBox"
+            Header="搜索"
+            PlaceholderText="输入币种，例如 BTC、ETH"
+            TextChanged="OnSearchTextChanged" />
+
+        <ToggleSwitch
+            x:Name="AllQuotesToggle"
+            Header="包含非 USDT 交易对"
+            Toggled="OnFilterToggled" />
+
+        <ListView
+            x:Name="ResultsList"
+            Height="260"
+            SelectionMode="Single">
+            <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                    <Setter Property="Padding" Value="12,6" />
+                </Style>
+            </ListView.ItemContainerStyle>
+            <ListView.ItemTemplate>
+                <DataTemplate x:DataType="md:CatalogEntry">
+                    <Grid ColumnSpacing="12" Padding="0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="{x:Bind DisplayName}" FontWeight="SemiBold" />
+                            <TextBlock
+                                Text="{x:Bind Symbol}"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+                        <Border
+                            Grid.Column="1"
+                            Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                            CornerRadius="4"
+                            Padding="6,2"
+                            VerticalAlignment="Center">
+                            <TextBlock
+                                Text="{x:Bind MarketBadge}"
+                                Style="{StaticResource CaptionTextBlockStyle}" />
+                        </Border>
+                    </Grid>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+
+        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <ProgressRing x:Name="LoadingRing" Width="16" Height="16" IsActive="False" />
+            <TextBlock
+                x:Name="StatusText"
+                Style="{StaticResource CaptionTextBlockStyle}"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Text="输入关键字搜索币种"
+                TextWrapping="Wrap" />
+        </StackPanel>
+    </StackPanel>
+</ContentDialog>

@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MenuBarCryptoPrice.Settings.WinUI/MenuBarCryptoPrice.Settings.WinUI.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/MenuBarCryptoPrice/MenuBarCryptoPrice.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MenuBarCryptoPrice.Tests/MenuBarCryptoPrice.Tests.csproj" />
+  </Folder>
+</Solution>

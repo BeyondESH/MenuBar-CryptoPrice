@@ -1,0 +1,34 @@
+<Window x:Class="MenuBarCryptoPrice.Taskbar.TickerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:MenuBarCryptoPrice.Controls"
+        Title="MenuBar CryptoPrice"
+        Width="240"
+        Height="26"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        Topmost="True"
+        ResizeMode="NoResize"
+        Focusable="False"
+        SnapsToDevicePixels="True"
+        UseLayoutRounding="True">
+    <Window.ContextMenu>
+        <ContextMenu>
+            <MenuItem Header="设置…" Click="OnSettingsClick" />
+            <MenuItem Header="重新定位" Click="OnRepositionClick" />
+            <MenuItem x:Name="AutoStartMenuItem" Header="开机自启" IsCheckable="True" Click="OnAutoStartClick" />
+            <Separator />
+            <MenuItem Header="关于" Click="OnAboutClick" />
+            <MenuItem Header="退出" Click="OnExitClick" />
+        </ContextMenu>
+    </Window.ContextMenu>
+
+    <Border Background="#01000000"
+            CornerRadius="7"
+            Padding="8,0">
+        <controls:TickerStripControl x:Name="Strip" />
+    </Border>
+</Window>
