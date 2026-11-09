@@ -12,6 +12,7 @@ public sealed class AppHost : IDisposable
     private readonly ILog _log;
     private readonly SingleInstance _singleInstance;
     private readonly ConfigService _configService;
+    private readonly BitgetNetwork _network;
     private readonly TickerStore _store = new();
     private readonly CatalogService _catalog;
     private readonly TaskbarLocator _locator;
@@ -30,6 +31,8 @@ public sealed class AppHost : IDisposable
     private TickerWindow _window;
     private TrayIconService? _tray;
     private FileSystemWatcher? _configWatcher;
+    private InstrumentKey[] _activeKeys = Array.Empty<InstrumentKey>();
+    private NetworkEndpointSettings? _activeNetwork;
     private double _lastAvailableWidth = -1;
     private double _lastPlacedWidth = -1;
     private AnchorMode _lastAnchor = (AnchorMode)(-1);
@@ -40,7 +43,9 @@ public sealed class AppHost : IDisposable
         _log = log;
         _singleInstance = singleInstance;
         _configService = new ConfigService(AppPaths.ConfigFile, log);
-        _catalog = new CatalogService(AppPaths.CacheDirectory, log);
+        _network = new BitgetNetwork(log);
+        _network.Apply(_configService.Config);
+        _catalog = new CatalogService(AppPaths.CacheDirectory, log, network: _network);
         _locator = new TaskbarLocator(log);
         _virtualDesktop = new VirtualDesktopService(log);
         _autoStart = new AutoStartService(log);
@@ -48,7 +53,11 @@ public sealed class AppHost : IDisposable
         _window = CreateWindow();
 
         _visibility = new VisibilityCoordinator(_locator, log);
-        _data = new MarketDataService(new BitgetRestClient(), () => new BitgetWsClient(log), _store, log);
+        _data = new MarketDataService(
+            new BitgetRestClient(_network),
+            () => new BitgetWsClient(log, _network),
+            _store,
+            log);
 
         _refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _topmostTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
@@ -75,7 +84,7 @@ public sealed class AppHost : IDisposable
         ApplyAutoStartState();
         PositionAndSize();
 
-        _data.Start(Keys());
+        StartMarketData();
 
         _tray = new TrayIconService(_configService.Config.StartWithWindows, _log);
         _tray.SettingsRequested += (_, _) => OpenSettings();
@@ -125,6 +134,7 @@ public sealed class AppHost : IDisposable
 
         _visibility.Dispose();
         _data.Dispose();
+        _network.Dispose();
 
         _tray?.Dispose();
         _tray = null;
@@ -156,6 +166,13 @@ public sealed class AppHost : IDisposable
 
     private IReadOnlyList<InstrumentKey> Keys()
         => _configService.Config.Items.Select(item => item.Key).ToList();
+
+    private void StartMarketData()
+    {
+        _activeKeys = Keys().Distinct().ToArray();
+        _activeNetwork = _network.Settings;
+        _data.Start(_activeKeys);
+    }
 
     private void OnRefreshTick(object? sender, EventArgs e)
     {
@@ -210,7 +227,16 @@ public sealed class AppHost : IDisposable
         _strip.ApplyConfig(_configService.Config);
         _lastAvailableWidth = -1;
         _lastAnchor = (AnchorMode)(-1);
-        _data.Start(Keys());
+        _network.Apply(_configService.Config);
+
+        var keys = Keys().Distinct().ToArray();
+        if (!keys.SequenceEqual(_activeKeys) || _network.Settings != _activeNetwork)
+        {
+            _activeKeys = keys;
+            _activeNetwork = _network.Settings;
+            _data.Start(keys);
+        }
+
         PositionAndSize();
         _autoStart.SetEnabled(_configService.Config.StartWithWindows);
         _tray?.SetAutoStartChecked(_configService.Config.StartWithWindows);
