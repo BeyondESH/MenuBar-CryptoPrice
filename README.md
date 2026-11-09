@@ -86,9 +86,10 @@ MenuBar CryptoPrice 是一个常驻 Windows 11 任务栏的轻量加密货币行
 
 ### 原生 WinUI 3 设置客户端
 
-- Windows 11 设置式左侧 `NavigationView`：行情 / 外观 / 关于。
+- Windows 11 设置式左侧 `NavigationView`：行情 / 网络 / 外观 / 关于。
 - 使用 `SettingsCard`、原生 `ComboBox`、`ToggleSwitch`、`Button`、`ContentDialog`。
 - 行情页：显示数量、币种排序、品类切换、实时价格、删除、添加币种、刷新目录。
+- 网络页：系统/直连/自定义代理、REST 与 WebSocket 地址覆盖、连接测试。
 - 添加币种：市场选择、关键字搜索、非 USDT 开关、在线/存在/去重校验。
 - 外观页：布局、字号、涨跌颜色、位置、贴靠方向、开机自启、恢复默认。
 - 关于页：作者 BeyondESH、GitHub 个人页、项目地址、版本、数据来源、配置文件路径、开源组件、打赏按钮与打赏码。
@@ -130,6 +131,7 @@ MenuBar CryptoPrice 是一个常驻 Windows 11 任务栏的轻量加密货币行
 | 页面 | 内容 |
 | --- | --- |
 | 行情 | 显示数量、币种列表、品类、价格、排序、删除、添加币种、目录刷新 |
+| 网络 | 代理模式、代理地址、REST/WebSocket 地址、连接测试、恢复默认 |
 | 外观 | 布局、字号、涨跌颜色、位置、贴靠方向、开机自启、恢复默认 |
 | 关于 | 作者、GitHub、项目地址、打赏、版本、数据来源、配置路径、开源组件 |
 
@@ -152,7 +154,7 @@ MenuBar CryptoPrice 是一个常驻 Windows 11 任务栏的轻量加密货币行
 │ WinUI 3 设置客户端 (MenuBarCryptoPrice.Settings.WinUI.exe)  │
 │                                                             │
 │  NavigationView + SettingsCard                              │
-│  行情 / 外观 / 关于                                          │
+│  行情 / 网络 / 外观 / 关于                                   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -161,6 +163,8 @@ MenuBar CryptoPrice 是一个常驻 Windows 11 任务栏的轻量加密货币行
 任务栏覆盖层需要**逐像素透明、无激活、置顶且可命中**的窗口，这是 WPF 的强项；WinUI 3 不适合做这种任务栏覆盖窗口。设置客户端则需要真正的 Windows 11 原生组件（NavigationView、SettingsCard、Mica、系统强调色），因此使用 WinUI 3 独立进程。
 
 两个进程通过同一份 `config.json` 协作：设置客户端保存后，主程序通过 `FileSystemWatcher` 监听文件变化，300–700ms 防抖后重新排布任务栏条并按需重订阅行情。
+
+设置客户端启动时会挂接到主程序的单实例互斥量；主程序退出（包括崩溃或被强制结束）后，设置窗口会自动关闭。若主程序未运行，设置仍可单独打开编辑配置。
 
 ## 安装
 
@@ -217,6 +221,17 @@ MenuBar CryptoPrice 是一个常驻 Windows 11 任务栏的轻量加密货币行
 - 外观页的“贴靠方向”用于优先使用任务栏左侧或右侧空白区。
 - 空间不足时可减少数量、切换双行布局或选择“任务栏上方”。
 
+### 网络与代理
+
+设置 → 网络页提供以下选项，修改后立即保存并同步到主程序：
+
+- **代理模式**：`跟随系统`（默认，使用 Windows 系统代理）、`直连`（忽略系统代理）、`自定义`（手动填写代理地址）。
+- **代理地址**：支持 `http://`、`https://`、`socks4://`、`socks5://` 与 `socks5h://`，例如 `http://127.0.0.1:7890` 或 `socks5://127.0.0.1:7891`。自定义模式留空时临时按跟随系统处理。
+- **REST / WebSocket 地址**：默认使用 Bitget 官方地址；可改为反向代理或国内加速地址。REST 地址只需填写到域名（含可选路径前缀），程序会自动追加 `/api/v2/...`；WebSocket 地址需要包含完整路径。
+- **连接测试**：使用当前设置请求一次 `BTCUSDT` 现货行情，显示成功/失败与往返耗时。
+
+REST 请求自带重试与超时（约 7 秒/次、最多 2 次），WebSocket 连接超时为 10 秒；断线后按 1/2/4/8/15/30 秒退避重连。WebSocket 不可用或行情超过约 30 秒未更新时，自动退化为 REST 轮询。仅调整外观或其他设置不会重启行情连接。
+
 ### 开机自启
 
 托盘菜单或外观页均可切换。程序通过当前用户注册表 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` 写入启动项，并带 `--autostart` 参数静默启动。
@@ -251,6 +266,10 @@ MenuBar CryptoPrice 是一个常驻 Windows 11 任务栏的轻量加密货币行
   "anchor": "left",
   "startWithWindows": true,
   "offsetX": 0,
+  "proxyMode": "system",
+  "proxyUrl": "",
+  "restBaseUrl": "https://api.bitget.com",
+  "wsUrl": "wss://ws.bitget.com/v2/ws/public",
   "items": [
     { "market": "USDT-FUTURES", "symbol": "SOLUSDT", "precision": 3 },
     { "market": "USDT-FUTURES", "symbol": "BTCUSDT", "precision": 1 },
@@ -270,6 +289,10 @@ MenuBar CryptoPrice 是一个常驻 Windows 11 任务栏的轻量加密货币行
 | `anchor` | string | `right` | `right` / `left` |
 | `startWithWindows` | bool | `false` | 是否写入当前用户启动项 |
 | `offsetX` | int | `0` | 手动水平偏移，范围 -4000–4000 |
+| `proxyMode` | string | `system` | `system` / `direct` / `custom` |
+| `proxyUrl` | string | `""` | 自定义代理地址，如 `http://127.0.0.1:7890` 或 `socks5://127.0.0.1:7891` |
+| `restBaseUrl` | string | `https://api.bitget.com` | REST 基地址，可指向反向代理或加速地址 |
+| `wsUrl` | string | `wss://ws.bitget.com/v2/ws/public` | WebSocket 地址，可指向反向代理或加速地址 |
 | `items` | array | — | 自选币种列表 |
 | `items[].market` | string | `SPOT` | `SPOT` / `USDT-FUTURES` |
 | `items[].symbol` | string | — | 交易对，如 `BTCUSDT` |
@@ -299,7 +322,7 @@ MenuBar CryptoPrice 是一个常驻 Windows 11 任务栏的轻量加密货币行
 
 - 不上传配置、自选币种或使用数据。
 - 不包含遥测、统计或广告 SDK。
-- 仅向 Bitget 公开行情接口发起网络请求。
+- 默认仅向 Bitget 公开行情接口发起网络请求；配置代理或自定义地址后，请求会经用户指定的代理/网关。
 - 配置、缓存和日志全部保存在本机 `%APPDATA%\MenuBarCryptoPrice`。
 
 ## 从源码构建
@@ -388,9 +411,10 @@ dist\MenuBarCryptoPrice-Setup-1.0.1.exe
 dotnet test tests/MenuBarCryptoPrice.Tests/MenuBarCryptoPrice.Tests.csproj
 ```
 
-当前覆盖 61 个测试，主要包括：
+当前覆盖 90+ 个测试，主要包括：
 
 - 配置读取/迁移/损坏恢复/round-trip。
+- 网络端点/代理地址归一化与 REST 重试。
 - Bitget 报文解析与格式化边界。
 - 重连退避与数据新鲜度。
 - 任务栏可见性策略与几何计算。
@@ -458,9 +482,11 @@ Windows 11 x64（22000+）。任务栏覆盖依赖 Windows 11 的 `Shell_TrayWnd
 
 ### 数据不更新/显示“数据延迟”？
 
-- 检查网络、代理或防火墙是否拦截 `api.bitget.com` 与 `ws.bitget.com`。
+- 先打开 设置 → 网络 → 测试连接，确认当前代理/端点是否可用。
+- 国内网络可尝试“跟随系统”并开启代理软件的系统代理，或选择“自定义”填写本地 HTTP/SOCKS5 端口（如 `http://127.0.0.1:7890`）。
+- 检查网络、代理或防火墙是否拦截 `api.bitget.com` 与 `ws.bitget.com`；使用自定义地址时确认反向代理同时转发 REST 与 WebSocket Upgrade。
 - 程序会在 WebSocket 不可用时退化为 REST 轮询；超过 30 秒未更新的价格会灰显。
-- 查看日志中的 WebSocket/REST 错误。
+- 查看日志中的 WebSocket/REST 错误；日志位于 `%APPDATA%\MenuBarCryptoPrice\logs`。
 
 ### 配置损坏了怎么办？
 

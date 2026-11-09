@@ -86,9 +86,10 @@ Cropped taskbar screenshots:
 
 ### Native WinUI 3 settings client
 
-- Windows Settings-style left `NavigationView`: Market (行情), Appearance (外观), About (关于).
+- Windows Settings-style left `NavigationView`: Market (行情), Network (网络), Appearance (外观), About (关于).
 - Uses `SettingsCard`, native `ComboBox`, `ToggleSwitch`, `Button`, and `ContentDialog`.
 - Market page: visible count, symbol order, market switch, live price, delete, add symbol, refresh catalog.
+- Network page: system/direct/custom proxy, REST and WebSocket endpoint overrides, connection test.
 - Add symbol dialog: market selection, keyword search, "include non-USDT pairs" toggle, online/duplicate validation.
 - Appearance page: layout, font size, up/down colors, position, anchor, auto-start, restore defaults.
 - About page: author BeyondESH, GitHub profile, project URL, version, data source, config path, open-source components, tip button and QR image.
@@ -130,6 +131,7 @@ Double-clicking the tray icon also opens settings.
 | Page | Contents |
 | --- | --- |
 | Market | Visible count, symbol list, market, price, sorting, delete, add symbol, catalog refresh |
+| Network | Proxy mode, proxy URL, REST/WebSocket endpoints, connection test, restore defaults |
 | Appearance | Layout, font size, up/down colors, position, anchor, auto-start, restore defaults |
 | About | Author, GitHub, project URL, tip, version, data source, config path, open-source components |
 
@@ -154,7 +156,7 @@ On first run without a configuration file, the host opens the settings client au
 │ (MenuBarCryptoPrice.Settings.WinUI.exe)                     │
 │                                                             │
 │  NavigationView + SettingsCard                              │
-│  Market / Appearance / About                                │
+│  Market / Network / Appearance / About                      │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -163,6 +165,8 @@ On first run without a configuration file, the host opens the settings client au
 The taskbar overlay needs a per-pixel transparent, non-activating, topmost, hit-testable window. WPF handles this well; WinUI 3 is not suitable for that kind of taskbar overlay. The settings client needs genuine Windows 11 controls (NavigationView, SettingsCard, Mica, system accent colors), so it is a separate WinUI 3 process.
 
 Both processes share `config.json`: after the settings client saves, the host watches the file with `FileSystemWatcher`, debounces for 300–700 ms, then re-layouts the taskbar strip and re-subscribes to market data when needed.
+
+The settings client attaches to the host's single-instance mutex at startup; when the host exits (including a crash or force-kill), the settings window closes automatically. If the host is not running, settings can still be opened on its own to edit configuration.
 
 ## Installation
 
@@ -219,9 +223,16 @@ Uninstall removes the install directory, Start menu shortcuts, uninstall registr
 - The Appearance page's "Anchor" chooses whether the strip prefers empty space on the left or right of the taskbar.
 - If space is tight, reduce the count, switch to the compact two-line layout, or choose "Above taskbar".
 
-### Auto-start
+### Network and proxy
 
-Toggle it from the tray menu or the Appearance page. The app writes a startup entry under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` and starts silently with the `--autostart` argument.
+Settings → Network provides the following; changes are saved immediately and synced to the host:
+
+- **Proxy mode**: `System` (default, uses the Windows system proxy), `Direct` (ignore the system proxy), or `Custom` (enter a proxy URL manually).
+- **Proxy URL**: supports `http://`, `https://`, `socks4://`, `socks5://`, and `socks5h://`, for example `http://127.0.0.1:7890` or `socks5://127.0.0.1:7891`. An empty custom value temporarily behaves like System.
+- **REST / WebSocket endpoints**: default to the official Bitget endpoints; replace them with a reverse proxy or acceleration gateway if needed. The REST base is the scheme/host/path prefix only; the app appends `/api/v2/...`. The WebSocket URL must include the full path.
+- **Connection test**: issues one spot `BTCUSDT` request with the current settings and reports success/failure plus round-trip time.
+
+REST requests retry transient failures (about 7 s per attempt, up to 2 attempts). WebSocket connects time out after 10 seconds; reconnects back off at 1/2/4/8/15/30 seconds. REST polling takes over when WebSocket is unavailable or when quotes have not updated for about 30 seconds. Changing appearance or other unrelated settings does not restart the market-data connection.
 
 ### About and tips
 
@@ -253,6 +264,10 @@ Example:
   "anchor": "left",
   "startWithWindows": true,
   "offsetX": 0,
+  "proxyMode": "system",
+  "proxyUrl": "",
+  "restBaseUrl": "https://api.bitget.com",
+  "wsUrl": "wss://ws.bitget.com/v2/ws/public",
   "items": [
     { "market": "USDT-FUTURES", "symbol": "SOLUSDT", "precision": 3 },
     { "market": "USDT-FUTURES", "symbol": "BTCUSDT", "precision": 1 },
@@ -272,6 +287,10 @@ Example:
 | `anchor` | string | `right` | `right` / `left` |
 | `startWithWindows` | bool | `false` | Write the current-user startup entry |
 | `offsetX` | int | `0` | Manual horizontal offset, -4000–4000 |
+| `proxyMode` | string | `system` | `system` / `direct` / `custom` |
+| `proxyUrl` | string | `""` | Custom proxy URL, such as `http://127.0.0.1:7890` or `socks5://127.0.0.1:7891` |
+| `restBaseUrl` | string | `https://api.bitget.com` | REST base URL; may point to a reverse proxy or acceleration gateway |
+| `wsUrl` | string | `wss://ws.bitget.com/v2/ws/public` | WebSocket URL; may point to a reverse proxy or acceleration gateway |
 | `items` | array | — | Configured symbols |
 | `items[].market` | string | `SPOT` | `SPOT` / `USDT-FUTURES` |
 | `items[].symbol` | string | — | Pair such as `BTCUSDT` |
@@ -301,7 +320,7 @@ Privacy:
 
 - No configuration, watchlist, or usage data is uploaded.
 - No telemetry, analytics, or advertising SDKs.
-- Network requests go only to Bitget public market-data endpoints.
+- By default, network requests go only to Bitget public market-data endpoints; with a configured proxy or custom endpoint, requests go through the proxy/gateway you specify.
 - Configuration, cache, and logs stay locally under `%APPDATA%\MenuBarCryptoPrice`.
 
 ## Building from source
@@ -390,9 +409,10 @@ The installer script is `installer\MenuBarCryptoPrice.iss`; the Simplified Chine
 dotnet test tests/MenuBarCryptoPrice.Tests/MenuBarCryptoPrice.Tests.csproj
 ```
 
-There are currently 61 tests covering:
+There are currently 90+ tests covering:
 
 - Configuration load/migration/corruption recovery/round-trip.
+- Network endpoint/proxy URL normalization and REST retries.
 - Bitget frame parsing and formatting edge cases.
 - Reconnect backoff and data freshness.
 - Taskbar visibility policy and geometry.
@@ -463,9 +483,11 @@ Fixed in 1.0.1. Previously a startup visibility guard restored any minimized win
 
 ### Data is not updating or shows "stale"
 
-- Check whether the network, proxy, or firewall blocks `api.bitget.com` and `ws.bitget.com`.
+- Open Settings → Network → Test connection first to check whether the current proxy/endpoint works.
+- On mainland China networks, try `System` proxy mode with the proxy client's system proxy enabled, or `Custom` with the local HTTP/SOCKS5 port (such as `http://127.0.0.1:7890`).
+- Check whether the network, proxy, or firewall blocks `api.bitget.com` and `ws.bitget.com`; with a custom endpoint, make sure the reverse proxy forwards both REST and WebSocket Upgrade requests.
 - The app falls back to REST polling when WebSocket is unavailable; prices older than 30 seconds are dimmed.
-- Check the WebSocket/REST errors in the logs.
+- Check the WebSocket/REST errors in the logs under `%APPDATA%\MenuBarCryptoPrice\logs`.
 
 ### The configuration is corrupt
 
