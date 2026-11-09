@@ -21,8 +21,29 @@ MenuBar CryptoPrice 是一个常驻 Windows 11 任务栏的轻量加密货币行
 
 > 行情仅供参考，不构成投资建议。本项目与 Bitget 无隶属关系。
 
+<p align="center">
+  <a href="README.md">简体中文</a> | <a href="README.en.md">English</a>
+</p>
+
+## 效果展示
+
+任务栏行情局部截图：
+
+<p align="center">
+  <img src="docs/xiaoguo1.png" width="585" alt="任务栏显示 SOL 永续合约，+2 表示还有两个币种折叠" />
+  <br />
+  <sub>任务栏显示 SOL 永续合约；<code>+2</code> 表示还有 2 个币种折叠。</sub>
+</p>
+
+<p align="center">
+  <img src="docs/xiaoguo2.png" width="502" alt="任务栏并排显示 SOL 与 BTC 永续合约行情" />
+  <br />
+  <sub>展开后任务栏并排显示 SOL 与 BTC 永续合约。</sub>
+</p>
+
 ## 目录
 
+- [效果展示](#效果展示)
 - [功能](#功能)
 - [界面与交互](#界面与交互)
 - [架构](#架构)
