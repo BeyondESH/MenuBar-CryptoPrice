@@ -16,7 +16,7 @@
     <LangVersion>latest</LangVersion>
     <AssemblyName>MenuBarCryptoPrice</AssemblyName>
     <RootNamespace>MenuBarCryptoPrice</RootNamespace>
-    <Version>1.1.0</Version>
+    <Version>1.1.1</Version>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>

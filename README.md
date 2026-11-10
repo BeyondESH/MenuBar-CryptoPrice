@@ -177,7 +177,7 @@ MenuBar CryptoPrice 是一个常驻 Windows 11 任务栏的轻量加密货币行
 ### 安装步骤
 
 1. 打开 [Releases](https://github.com/BeyondESH/MenuBar-CryptoPrice/releases/latest)。
-2. 下载 `MenuBarCryptoPrice-Setup-1.1.0.exe`。
+2. 下载 `MenuBarCryptoPrice-Setup-1.1.1.exe`。
 3. 运行安装程序。安装为当前用户安装，不触发 UAC。
 4. 可选勾选“创建桌面快捷方式”。
 5. 安装完成后可勾选启动主程序；首次运行会自动打开设置。
@@ -394,7 +394,7 @@ dist\
 该脚本会先执行 `scripts\publish.ps1`，再调用 Inno Setup 编译：
 
 ```text
-dist\MenuBarCryptoPrice-Setup-1.1.0.exe
+dist\MenuBarCryptoPrice-Setup-1.1.1.exe
 ```
 
 如果 `dist` 已是最新发布结果，可跳过发布：
@@ -564,6 +564,7 @@ GNU General Public License for more details.
 
 ## 版本历史
 
+- **v1.1.1**：修复设置客户端缩放窗口时页面内容不跟随窗口变化的问题（行情、网络、外观、关于四页内容随窗口铺满）。
 - **v1.1.0**：新增网络设置页（系统/直连/自定义代理、REST/WebSocket 地址覆盖、连接测试），REST 请求重试与 WebSocket 连接超时，半开连接自动 REST 兜底；设置客户端在主程序退出时自动关闭。
 - **v1.0.1**：修复设置窗口最小化后被启动可见性守护恢复的问题；WinUI 3 设置客户端、任务栏展开层外部点击关闭、GitHub/打赏/图标与安装程序。
 - **v1.0.0**：首个版本，任务栏行情覆盖层、Bitget 现货/永续、设置客户端与安装包。
