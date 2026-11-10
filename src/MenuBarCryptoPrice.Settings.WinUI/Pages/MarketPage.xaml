@@ -8,8 +8,10 @@
     <ScrollViewer
         HorizontalScrollBarVisibility="Disabled"
         VerticalScrollBarVisibility="Auto"
+        HorizontalContentAlignment="Stretch"
+        VerticalContentAlignment="Top"
         Padding="36,24,36,48">
-        <StackPanel MaxWidth="1000" HorizontalAlignment="Stretch" Spacing="12">
+        <StackPanel HorizontalAlignment="Stretch" Spacing="12">
 
             <Grid>
                 <TextBlock Text="行情" Style="{StaticResource TitleTextBlockStyle}" />
